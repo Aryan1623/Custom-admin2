@@ -1,0 +1,254 @@
+{% block content %}
+    <style>
+        /* Page Styling */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f4f8;
+            color: #2c3e50;
+        }
+
+        h1 {
+            text-align: center;
+            color: #001f3f; /* Navy blue */
+            margin-top: 20px;
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        /* Attendance Percentage */
+        .attendance-percentage {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* Table Styling */
+        table {
+            width: 90%;
+            max-width: 1000px;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: #ffffff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #dde3ec;
+            font-size: 18px;
+        }
+
+        th {
+            background-color: #001f3f; /* Navy blue */
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f6fc;
+        }
+
+        tr:hover {
+            background-color: #d9eaf7;
+        }
+
+        td a {
+            color: #001f3f;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        td a:hover {
+            text-decoration: underline;
+        }
+
+        tr.empty-row td {
+            color: #888;
+        }
+
+        /* Responsive Styling */
+        @media (max-width: 768px) {
+            table, th, td {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 28px;
+            }
+
+            table, th, td {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+
+        /* Charts Wrapper */
+        .charts-wrapper {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+
+        .chart-container {
+            width: 45%;
+        }
+    </style>
+
+    <h1>Attendance Records</h1>
+
+    <!-- Attendance Percentage -->
+    <div class="attendance-percentage">
+        Attendance Percentage: <span id="attendancePercentage">0%</span>
+    </div>
+
+    <!-- Attendance Table -->
+    <table id="attendanceTable">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if attendance_data %}
+                {% for record in attendance_data %}
+                    <tr>
+                        <td>{{ record.user }}</td>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.status }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr class="empty-row"><td colspan="3">No attendance data available.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- Charts Section -->
+    <div class="charts-wrapper">
+        <div class="chart-container">
+            <canvas id="attendancePieChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="attendanceBarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Chart.js Script -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Extract data from the table
+            const table = document.getElementById('attendanceTable');
+            const rows = table.querySelectorAll('tbody tr');
+            
+            let presentDays = 0;
+            let absentDays = 0;
+            let monthlyData = {};
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const status = cells[2].textContent.trim().toLowerCase();
+                const date = new Date(cells[1].textContent.trim());
+                const month = date.toLocaleString('default', { month: 'long' });
+
+                if (status === 'present') {
+                    presentDays += 1;
+                } else if (status === 'absent') {
+                    absentDays += 1;
+                }
+                
+                if (!monthlyData[month]) {
+                    monthlyData[month] = 0;
+                }
+                if (status === 'present') {
+                    monthlyData[month] += 1;
+                }
+            });
+
+            const months = Object.keys(monthlyData);
+            const daysPresent = Object.values(monthlyData);
+
+            // Pie Chart for Present vs Absent Days
+            const ctxPie = document.getElementById('attendancePieChart').getContext('2d');
+            new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: ['Present', 'Absent'],
+                    datasets: [{
+                        data: [presentDays, absentDays],
+                        backgroundColor: ['#36A2EB', '#FF6384'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            enabled: true,
+                        }
+                    }
+                }
+            });
+
+            // Bar Chart for Monthly Attendance
+            const ctxBar = document.getElementById('attendanceBarChart').getContext('2d');
+            new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: months,  // Months like ['January', 'February', ...]
+                    datasets: [{
+                        label: 'Days Present',
+                        data: daysPresent,  // Data for each month
+                        backgroundColor: '#36A2EB',
+                        borderColor: '#36A2EB',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Days Present'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            enabled: true,
+                        }
+                    }
+                }
+            });
+
+            // Calculate and display attendance percentage
+            const totalDays = presentDays + absentDays;
+            const attendancePercentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(2) : 0;
+            document.getElementById('attendancePercentage').textContent = attendancePercentage + '%';
+        });
+    </script>
+{% endblock content %}
